@@ -3,8 +3,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'login_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const SafeBiteApp());
 }
 
@@ -17,7 +26,7 @@ class SafeBiteApp extends StatelessWidget {
       title: 'SafeBite',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green),
-      home: const HomePage(),
+      home: const LoginPage(),
     );
   }
 }
@@ -42,8 +51,7 @@ class _HomePageState extends State<HomePage> {
 
   // 📷 اختيار من المعرض
   Future<void> _pickImageFromGallery() async {
-    final XFile? image =
-        await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
       setState(() {
@@ -95,8 +103,7 @@ class _HomePageState extends State<HomePage> {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.files.add(
-        await http.MultipartFile.fromPath(
-            'image', _selectedImage!.path),
+        await http.MultipartFile.fromPath('image', _selectedImage!.path),
       );
 
       var response = await request.send();
@@ -108,8 +115,7 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           _result = data['result'] ?? 'Unknown';
           _message = data['message'] ?? '';
-          _detectedAllergens =
-              data['detected_allergens'] ?? [];
+          _detectedAllergens = data['detected_allergens'] ?? [];
         });
       } else {
         setState(() {
@@ -159,8 +165,7 @@ class _HomePageState extends State<HomePage> {
                 child: _selectedImage != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.file(_selectedImage!,
-                            fit: BoxFit.cover),
+                        child: Image.file(_selectedImage!, fit: BoxFit.cover),
                       )
                     : const Center(
                         child: Text("No image selected"),
