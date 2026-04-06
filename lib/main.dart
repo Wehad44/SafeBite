@@ -6,13 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
+import 'profile_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const SafeBiteApp());
 }
@@ -149,6 +148,17 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('SafeBite'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -167,9 +177,7 @@ class _HomePageState extends State<HomePage> {
                         borderRadius: BorderRadius.circular(16),
                         child: Image.file(_selectedImage!, fit: BoxFit.cover),
                       )
-                    : const Center(
-                        child: Text("No image selected"),
-                      ),
+                    : const Center(child: Text("No image selected")),
               ),
             ),
 
@@ -203,7 +211,7 @@ class _HomePageState extends State<HomePage> {
               onPressed: _isLoading ? null : _analyzeImage,
               child: _isLoading
                   ? const CircularProgressIndicator()
-                  : const Text("Analyze"),
+                  : const Text("Detect Allergen"),
             ),
 
             const SizedBox(height: 16),
@@ -212,9 +220,10 @@ class _HomePageState extends State<HomePage> {
             Text(
               _result,
               style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _getColor()),
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: _getColor(),
+              ),
             ),
 
             Text(_message),
@@ -226,7 +235,7 @@ class _HomePageState extends State<HomePage> {
               children: _detectedAllergens
                   .map((e) => Chip(label: Text(e.toString())))
                   .toList(),
-            )
+            ),
           ],
         ),
       ),

@@ -17,49 +17,161 @@ class _LoginPageState extends State<LoginPage> {
 
   bool isPasswordHidden = true;
 
+  String? emailError;
+  String? passwordError;
+
+  bool isValidEmail(String email) {
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@(gmail|hotmail|outlook|yahoo)\.com$',
+    ).hasMatch(email);
+  }
+
+  void showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
   Future<void> signUp() async {
+    setState(() {
+      emailError = null;
+      passwordError = null;
+    });
+
+    String userEmail = email.text.trim();
+    String userPassword = password.text.trim();
+
+    if (!isValidEmail(userEmail)) {
+      setState(() {
+        emailError = "Enter a valid email";
+      });
+      return;
+    }
+
+    // Validation
+    if (userEmail.isEmpty) {
+      setState(() {
+        emailError = "Email is required";
+      });
+      return;
+    }
+
+    if (!userEmail.contains("@")) {
+      setState(() {
+        emailError = "Invalid email";
+      });
+      return;
+    }
+
+    if (userPassword.isEmpty) {
+      setState(() {
+        passwordError = "Password is required";
+      });
+      return;
+    }
+
+    if (userPassword.length < 6) {
+      setState(() {
+        passwordError = "At least 6 characters";
+      });
+      return;
+    }
+
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text.trim(),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created successfully.")),
+        email: userEmail,
+        password: userPassword,
       );
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        setState(() {
+          emailError = "This email is already registered";
+        });
+      } else if (e.code == 'weak-password') {
+        setState(() {
+          passwordError = "Weak password";
+        });
+      } else {
+        setState(() {
+          emailError = "Sign up failed";
+        });
+      }
     }
   }
 
   Future<void> signIn() async {
+    setState(() {
+      emailError = null;
+      passwordError = null;
+    });
+
+    String userEmail = email.text.trim();
+    String userPassword = password.text.trim();
+
+    if (!isValidEmail(userEmail)) {
+      setState(() {
+        emailError = "Enter a valid email";
+      });
+      return;
+    }
+
+    if (userEmail.isEmpty) {
+      setState(() {
+        emailError = "Email is required";
+      });
+      return;
+    }
+
+    if (!userEmail.contains("@")) {
+      setState(() {
+        emailError = "Invalid email";
+      });
+      return;
+    }
+
+    if (userPassword.isEmpty) {
+      setState(() {
+        passwordError = "Password is required";
+      });
+      return;
+    }
+
+    if (userPassword.length < 6) {
+      setState(() {
+        passwordError = "At least 6 characters";
+      });
+      return;
+    }
+
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.text.trim(),
-        password: password.text.trim(),
+        email: userEmail,
+        password: userPassword,
       );
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Login successful.")));
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const HomePage(), // هذه صفحتك الحالية
-        ),
+        MaterialPageRoute(builder: (context) => const HomePage()),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        setState(() {
+          emailError = "No account found";
+        });
+      } else if (e.code == 'wrong-password') {
+        setState(() {
+          passwordError = "Incorrect password";
+        });
+      } else {
+        setState(() {
+          emailError = "Login failed";
+        });
+      }
     }
   }
 
@@ -73,7 +185,10 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             TextField(
               controller: email,
-              decoration: const InputDecoration(labelText: "Email"),
+              decoration: InputDecoration(
+                labelText: "Email",
+                errorText: emailError,
+              ),
             ),
 
             TextField(
@@ -81,6 +196,7 @@ class _LoginPageState extends State<LoginPage> {
               obscureText: isPasswordHidden,
               decoration: InputDecoration(
                 labelText: "Password",
+                errorText: passwordError,
                 suffixIcon: IconButton(
                   icon: Icon(
                     isPasswordHidden ? Icons.visibility : Icons.visibility_off,
@@ -103,11 +219,25 @@ class _LoginPageState extends State<LoginPage> {
               child: const Text("Sign In"),
             ),
 
-            ElevatedButton(
-              onPressed: () async {
-                await signUp();
-              },
-              child: const Text("Sign Up"),
+            const SizedBox(height: 10),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Don't have an account? "),
+                GestureDetector(
+                  onTap: () {
+                    signUp(); // يسوي تسجيل مباشرة
+                  },
+                  child: const Text(
+                    "Sign Up",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
