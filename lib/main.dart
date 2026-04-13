@@ -3,8 +3,17 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'login_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const SafeBiteApp());
 }
 
@@ -16,10 +25,8 @@ class SafeBiteApp extends StatelessWidget {
     return MaterialApp(
       title: 'SafeBite',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
-      home: const HomePage(),
+      theme: ThemeData(primarySwatch: Colors.green),
+      home: const LoginPage(), // 🔥 نبدأ من اللوقن
     );
   }
 }
@@ -171,13 +178,6 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
                 ),
                 child: _selectedImage != null
                     ? ClipRRect(
@@ -187,157 +187,20 @@ class _HomePageState extends State<HomePage> {
                           fit: BoxFit.cover,
                         ),
                       )
-                    : const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.image_outlined, size: 60, color: Colors.grey),
-                            SizedBox(height: 12),
-                            Text(
-                              'No image selected',
-                              style: TextStyle(fontSize: 18, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
+                    : const Center(child: Text('No image selected')),
               ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImageFromGallery,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('Upload'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.green,
-                      elevation: 0,
-                      side: const BorderSide(color: Colors.green),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _pickImageFromCamera,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _detectImage,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 54),
-                backgroundColor: Colors.black87,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+            ElevatedButton(onPressed: _pickImageFromGallery, child: const Text('Upload')),
+            ElevatedButton(onPressed: _pickImageFromCamera, child: const Text('Camera')),
+            ElevatedButton(onPressed: _detectImage, child: const Text('Detect')),
+            const SizedBox(height: 12),
+            Text(_result, style: TextStyle(fontSize: 22, color: _getColor())),
+            if (_result == 'Not Safe' && _recommendations.isNotEmpty)
+              ElevatedButton(
+                onPressed: _openRecommendationsPage,
+                child: const Text('View Recommendations'),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : const Text(
-                      'Detect',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _result,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: _getColor(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _message,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (_detectedAllergens.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _detectedAllergens
-                          .map(
-                            (item) => Chip(
-                              backgroundColor: Colors.red.shade50,
-                              label: Text(
-                                item.toString(),
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  if (_result == 'Not Safe' && _recommendations.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _openRecommendationsPage,
-                        icon: const Icon(Icons.recommend),
-                        label: const Text('View Recommendations'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    )
-                  ]
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -355,130 +218,21 @@ class RecommendationsPage extends StatelessWidget {
     required this.detectedAllergens,
   });
 
-  Widget _nutritionRow(String label, dynamic value) {
-    if (value == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text('$label: $value'),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
-      appBar: AppBar(
-        title: const Text('Recommendations'),
-        centerTitle: true,
-      ),
-      body: recommendations.isEmpty
-          ? const Center(
-              child: Text('No recommendations available'),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (detectedAllergens.isNotEmpty) ...[
-                  const Text(
-                    'Detected allergens',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: detectedAllergens
-                        .map(
-                          (item) => Chip(
-                            backgroundColor: Colors.red.shade50,
-                            label: Text(item.toString()),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                ...recommendations.map((rec) {
-                  final imageUrl = rec['image_final'];
-                  final nutrition = rec['nutrition'] ?? {};
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (imageUrl != null &&
-                              imageUrl.toString().trim().isNotEmpty) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                imageUrl,
-                                height: 180,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          Text(
-                            rec['product_name']?.toString() ?? 'Unknown product',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (rec['brands'] != null &&
-                              rec['brands'].toString().trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              rec['brands'].toString(),
-                              style: const TextStyle(color: Colors.black54),
-                            ),
-                          ],
-                          if (rec['main_category'] != null &&
-                              rec['main_category'].toString().trim().isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Category: ${rec['main_category']}',
-                              style: const TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Nutrition',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 6),
-                          _nutritionRow('Energy', nutrition['energy_100g']),
-                          _nutritionRow('Fat', nutrition['fat_100g']),
-                          _nutritionRow('Carbs', nutrition['carbohydrates_100g']),
-                          _nutritionRow('Sugars', nutrition['sugars_100g']),
-                          _nutritionRow('Proteins', nutrition['proteins_100g']),
-                          _nutritionRow('Salt', nutrition['salt_100g']),
-                          _nutritionRow('Sodium', nutrition['sodium_100g']),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ],
+      appBar: AppBar(title: const Text('Recommendations')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: recommendations.map((rec) {
+          return Card(
+            child: ListTile(
+              title: Text(rec['product_name'] ?? ''),
+              subtitle: Text(rec['main_category'] ?? ''),
             ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
