@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'main.dart'; // عشان HomePage
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
+import 'home_page.dart';
+import 'profile_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,61 +13,136 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  TextEditingController email = TextEditingController();
-  TextEditingController password = TextEditingController();
+  final TextEditingController email = TextEditingController();
+  final TextEditingController password = TextEditingController();
 
   bool isPasswordHidden = true;
+  bool isLoading = false;
+
+  Future<List<String>> _loadUserAllergies(String uid) async {
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+    if (!doc.exists) return [];
+
+    final data = doc.data();
+    if (data == null) return [];
+
+    final raw = data['allergies'];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+
+    return [];
+  }
+
+  Future<void> _goToSelectionThenHome(
+    User user, {
+    List<String> initialAllergies = const [],
+  }) async {
+    final selectedAllergies = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AllergySelectionPage(
+          userId: user.uid,
+          initialAllergies: initialAllergies,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomePage(
+          userAllergens: selectedAllergies ?? initialAllergies,
+        ),
+      ),
+    );
+  }
 
   Future<void> signUp() async {
+    setState(() => isLoading = true);
+
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email.text.trim(),
         password: password.text.trim(),
       );
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Account created successfully.")),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AllergySelectionPage()),
-      );
+      await _goToSelectionThenHome(credential.user!);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   Future<void> signIn() async {
+    setState(() => isLoading = true);
+
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.text.trim(),
         password: password.text.trim(),
       );
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Login successful.")));
+      final user = credential.user!;
+      final allergies = await _loadUserAllergies(user.uid);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomePage(), // هذه صفحتك الحالية
-        ),
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Login successful.")),
       );
+
+      if (allergies.isEmpty) {
+        await _goToSelectionThenHome(user);
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(
+              userAllergens: allergies,
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login")),
+      appBar: AppBar(
+        title: const Text("Login"),
+        centerTitle: true,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -75,7 +151,6 @@ class _LoginPageState extends State<LoginPage> {
               controller: email,
               decoration: const InputDecoration(labelText: "Email"),
             ),
-
             TextField(
               controller: password,
               obscureText: isPasswordHidden,
@@ -83,7 +158,9 @@ class _LoginPageState extends State<LoginPage> {
                 labelText: "Password",
                 suffixIcon: IconButton(
                   icon: Icon(
-                    isPasswordHidden ? Icons.visibility : Icons.visibility_off,
+                    isPasswordHidden
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                   ),
                   onPressed: () {
                     setState(() {
@@ -93,91 +170,19 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
-
             ElevatedButton(
-              onPressed: () async {
-                await signIn();
-              },
-              child: const Text("Sign In"),
+              onPressed: isLoading ? null : signIn,
+              child: isLoading
+                  ? const CircularProgressIndicator()
+                  : const Text("Sign In"),
             ),
-
             ElevatedButton(
-              onPressed: () async {
-                await signUp();
-              },
+              onPressed: isLoading ? null : signUp,
               child: const Text("Sign Up"),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class AllergySelectionPage extends StatefulWidget {
-  const AllergySelectionPage({super.key});
-
-  @override
-  State<AllergySelectionPage> createState() => _AllergySelectionPageState();
-}
-
-class _AllergySelectionPageState extends State<AllergySelectionPage> {
-  Map<String, bool> allergies = {
-    "Milk": false,
-    "Peanuts": false,
-    "Eggs": false,
-    "Gluten": false,
-    "Seafood": false,
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Select Your Allergies")),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: allergies.keys.map((item) {
-                return CheckboxListTile(
-                  title: Text(item),
-                  value: allergies[item],
-                  onChanged: (value) {
-                    setState(() {
-                      allergies[item] = value!;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-
-          ElevatedButton(
-            onPressed: () async {
-              final user = FirebaseAuth.instance.currentUser;
-
-              if (user != null) {
-                List selectedAllergies = allergies.entries
-                    .where((e) => e.value == true)
-                    .map((e) => e.key)
-                    .toList();
-
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .set({'allergies': selectedAllergies});
-
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
-              }
-            },
-            child: const Text("Continue"),
-          ),
-        ],
       ),
     );
   }
