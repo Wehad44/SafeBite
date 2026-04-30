@@ -1,16 +1,22 @@
-# safebite
+# SafeBite – Food Allergen Detection and Recommendation
 
-A new Flutter project.
+## Project Overview
+SafeBite is a mobile application that helps users detect allergens in food products. The user can scan or upload an image of a food product label, and the system checks if the product is safe based on their allergy profile. If not, it suggests safer alternatives.
 
-## Getting Started
+## Features
+- Scan or upload food label images
+- Detect allergens based on user allergy profile
+- Show result (Safe / Unsafe)
+- Provide up to 5 alternative recommendations if unsafe
+- Save user allergies so they don’t need to enter them again
 
-This project is a starting point for a Flutter application.
+## Technology Stack
+- Flutter
+- Firebase Firestore
+- Tesseract OCR
+- Decision Tree
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Team Members
+- Wehad Alhenaki
+- Yara Alsfaian
+- Jory Aldossari
