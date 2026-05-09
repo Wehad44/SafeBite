@@ -33,6 +33,19 @@ class _HomePageState extends State<HomePage> {
 
   late List<String> _userAllergens;
 
+  final List<String> _categoryOptions = [
+    'Chocolate',
+    'Dairy',
+    'Cookies & Snacks',
+    'Cereal',
+    'Drinks',
+    'Desserts',
+    'Bread & Bakery',
+    'Sauces',
+  ];
+
+  String? _selectedCategory;
+
   final String apiUrl = 'http://10.0.2.2:5000/analyze';
 
   @override
@@ -109,6 +122,14 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (_selectedCategory == null || _selectedCategory!.isEmpty) {
+      setState(() {
+        _result = 'Please select a category first';
+        _message = '';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _message = '';
@@ -124,6 +145,7 @@ class _HomePageState extends State<HomePage> {
       );
 
       request.fields['user_allergens'] = jsonEncode(_userAllergens);
+      request.fields['input_main_category'] = _selectedCategory ?? '';
 
       final response = await request.send();
       final res = await http.Response.fromStream(response);
@@ -230,6 +252,32 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             if (_userAllergens.isNotEmpty) const SizedBox(height: 12),
+
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: InputDecoration(
+                labelText: 'Product Category',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              items: _categoryOptions.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                });
+              },
+            ),
+
+            const SizedBox(height: 12),
+
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -270,6 +318,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
@@ -307,7 +356,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
+
             ElevatedButton(
               onPressed: _isLoading ? null : _detectImage,
               style: ElevatedButton.styleFrom(
@@ -333,7 +384,9 @@ class _HomePageState extends State<HomePage> {
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
+
             const SizedBox(height: 18),
+
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
@@ -424,11 +477,41 @@ class RecommendationsPage extends StatelessWidget {
     required this.detectedAllergens,
   });
 
+  String cleanText(dynamic value) {
+    if (value == null) return '';
+
+    final text = value.toString();
+
+    final regex = RegExp(r"'text':\s*'([^']*)'");
+    final matches = regex.allMatches(text).map((m) => m.group(1) ?? '').toList();
+
+    if (matches.isNotEmpty) {
+      return matches.firstWhere(
+        (t) => RegExp(r'[a-zA-Z]').hasMatch(t),
+        orElse: () => matches.first,
+      );
+    }
+
+    return text
+        .replaceAll('[', '')
+        .replaceAll(']', '')
+        .replaceAll('{', '')
+        .replaceAll('}', '')
+        .trim();
+  }
+
   Widget _nutritionRow(String label, dynamic value) {
     if (value == null) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Text('$label: $value'),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.black87,
+        ),
+      ),
     );
   }
 
@@ -449,6 +532,8 @@ class RecommendationsPage extends StatelessWidget {
               children: recommendations.map((rec) {
                 final imageUrl = rec['image_final'];
                 final nutrition = rec['nutrition'] ?? {};
+                final productName = cleanText(rec['product_name']);
+                final ingredients = cleanText(rec['ingredients_text']);
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -470,47 +555,94 @@ class RecommendationsPage extends StatelessWidget {
                       children: [
                         if (imageUrl != null &&
                             imageUrl.toString().trim().isNotEmpty) ...[
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              imageUrl,
-                              height: 180,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const SizedBox.shrink();
-                              },
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullImagePage(
+                                    imageUrl: imageUrl.toString(),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.network(
+                                imageUrl.toString(),
+                                height: 180,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
                         ],
+
                         Text(
-                          rec['product_name'] ?? 'Unknown product',
+                          productName.isEmpty ? 'Unknown product' : productName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+
                         if (rec['brands'] != null &&
-                            rec['brands'].toString().isNotEmpty) ...[
+                            rec['brands'].toString().trim().isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
-                            rec['brands'],
-                            style: const TextStyle(color: Colors.black54),
+                            cleanText(rec['brands']),
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
+
                         if (rec['main_category'] != null &&
-                            rec['main_category'].toString().isNotEmpty) ...[
+                            rec['main_category'].toString().trim().isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'Category: ${rec['main_category']}',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                            'Category: ${cleanText(rec['main_category'])}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
                         ],
-                        const SizedBox(height: 10),
+
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Ingredients',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          ingredients.isEmpty
+                              ? 'No ingredients available'
+                              : ingredients,
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black87,
+                            height: 1.4,
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
                         const Text(
                           'Nutrition',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         _nutritionRow('Energy', nutrition['energy_100g']),
@@ -529,3 +661,34 @@ class RecommendationsPage extends StatelessWidget {
     );
   }
 }
+
+class FullImagePage extends StatelessWidget {
+  final String imageUrl;
+
+  const FullImagePage({
+    super.key,
+    required this.imageUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Product Image'),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
