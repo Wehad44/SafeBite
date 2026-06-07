@@ -12,9 +12,34 @@ SafeBite is a mobile application that helps users detect allergens in food produ
 
 ## Technology Stack
 - Flutter
+- Flask
 - Firebase Firestore
 - Tesseract OCR
 - Support Vector Machine
+
+## Setup and Installation
+
+### Prerequisites
+* Flutter SDK (Latest stable version)
+* Python 3.10+
+* Tesseract OCR Engine installed locally
+* Firebase Project credentials
+
+### 1. Backend Server Setup
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+pip install -r requirements.txt
+python api.py
+```
+### 2. Frontend Mobile Setup
+cd frontend
+flutter pub get
+- Ensure google-services.json is added to android/app/
+- Ensure GoogleService-Info.plist is added to ios/Runner/
+
+flutter run
 
 ## Team Members
 - Wehad Alhenaki
