@@ -14,7 +14,7 @@ SafeBite is a mobile application that helps users detect allergens in food produ
 - Flutter
 - Firebase Firestore
 - Tesseract OCR
-- Decision Tree
+- Support Vector Machine
 
 ## Team Members
 - Wehad Alhenaki
